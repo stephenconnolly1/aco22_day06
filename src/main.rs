@@ -20,35 +20,39 @@ fn main() {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(x) = line {
-                let len = find_start_of_packet(&x);
+                let mut len = find_start_of_packet(&x);
                 println!("Packet marker at location: {len}");
+                len = find_start_of_message(&x);
+                println!("message marker at location: {len}");
             }
         }
     } else {
         println!("Unable to open file");
     }
 }
+
 fn find_start_of_packet(stream: &str) -> usize {
+    return find_end_of_marker(stream, 4);
+}
+
+fn find_start_of_message(stream: &str) -> usize {
+    return find_end_of_marker(stream, 14);
+}
+
+
+fn find_end_of_marker(stream: &str, marker_size:usize) -> usize {
     
-    for i in 0..(stream.len()-4) {
-        let s = &stream[i..i+4];
-        let mut chars = s.chars();
-        let c1 = chars.next().unwrap();
-        let c2 = chars.next().unwrap();
-        let c3 = chars.next().unwrap();
-        let c4 = chars.next().unwrap();
+    'outer: for i in 0..(stream.len()-marker_size) {
+        let s = &stream[i..i+marker_size];
+        let chars: Vec<_> = s.chars().collect();
 
-        if c1 == c2 {continue;}
-        if c1 == c3 {continue;}
-        if c1 == c4 {continue;}
-
-        if c2 == c3 {continue;}
-        if c2 == c4 {continue;}
-
-        if c3 == c4 {continue;}
-
-        // All 4 chars in this quartet unique
-        return i+4;
+        for x in 0..marker_size {
+            for y in x+1..marker_size {
+                if chars[x] == chars[y] {continue 'outer;}
+            }
+        }
+        // All chars in this segment unique
+        return i+marker_size;
     }
     println! ("No packet start sequence found");
     return 0;
@@ -77,5 +81,31 @@ mod tests {
     fn t4() {
         let s = "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw";
         assert_eq!(find_start_of_packet(&s), 11);
+    }
+    //message tests
+    #[test]
+    fn t5() {
+        let s = "mjqjpqmgbljsphdztnvjfqwrcgsmlb";
+        assert_eq!(find_start_of_message(&s), 19);
+    }
+    #[test]
+    fn t6() {
+        let s = "bvwbjplbgvbhsrlpgdmjqwftvncz";
+        assert_eq!(find_start_of_message(&s), 23);
+    }
+    #[test]
+    fn t7() {
+        let s = "nppdvjthqldpwncqszvftbrmjlhg";
+        assert_eq!(find_start_of_message(&s), 23);
+    }
+    #[test]
+    fn t8() {
+        let s = "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg";
+        assert_eq!(find_start_of_message(&s), 29);
+    }
+    #[test]
+    fn t9() {
+        let s = "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw";
+        assert_eq!(find_start_of_message(&s), 26);
     }
 }
